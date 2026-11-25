@@ -166,6 +166,26 @@ public final class CombatModeAutomation {
 
         switch (step) {
             case IDLE -> {
+                BlockPos existingAnchor = findNearbyAnchor(client, player, target);
+                if (existingAnchor != null) {
+                    actionPos = existingAnchor.toImmutable();
+                    BlockState existingState = client.world.getBlockState(actionPos);
+                    if (existingState.get(RespawnAnchorBlock.CHARGES) > RespawnAnchorBlock.NO_CHARGES) {
+                        detonateAnchor(client, player, target, actionPos);
+                        return;
+                    }
+
+                    int glowstoneSlot = findHotbarSlot(player, Items.GLOWSTONE);
+                    if (glowstoneSlot < 0) {
+                        return;
+                    }
+                    selectSlot(player, glowstoneSlot);
+                    interactWithBlock(client, player, actionPos, Direction.UP);
+                    step = Step.WAITING_FOR_CHARGE;
+                    stepTicks = 0;
+                    return;
+                }
+
                 BlockPos placePos = findSupportedPlacePosition(client, player, target, false);
                 int anchorSlot = findHotbarSlot(player, Items.RESPAWN_ANCHOR);
                 if (placePos == null || anchorSlot < 0) {
@@ -205,26 +225,69 @@ public final class CombatModeAutomation {
                 BlockState state = client.world.getBlockState(actionPos);
                 if (state.isOf(Blocks.RESPAWN_ANCHOR)
                         && state.get(RespawnAnchorBlock.CHARGES) > RespawnAnchorBlock.NO_CHARGES) {
-                    Vec3d explosionPos = actionPos.toCenterPos();
-                    if (!isSafeExplosion(client, player, target, explosionPos, 5.0f)) {
-                        player.sendMessage(net.minecraft.text.Text.literal("Anchor detonation skipped: predicted self-damage is too high."), true);
-                        reset(player);
-                        return;
-                    }
-                    int detonationSlot = findDetonationSlot(player);
-                    if (detonationSlot < 0) {
-                        reset(player);
-                        return;
-                    }
-                    selectSlot(player, detonationSlot);
-                    interactWithBlock(client, player, actionPos, Direction.UP);
-                    reset(player);
+                    detonateAnchor(client, player, target, actionPos);
                 } else if (stepTicks > STEP_TIMEOUT_TICKS) {
                     reset(player);
                 }
             }
             case WAITING_FOR_OBSIDIAN, WAITING_FOR_CRYSTAL -> reset(player);
         }
+    }
+
+    private static BlockPos findNearbyAnchor(
+            MinecraftClient client,
+            ClientPlayerEntity player,
+            PlayerEntity target
+    ) {
+        BlockPos center = BlockPos.ofFloored(target.getX(), target.getY(), target.getZ());
+        BlockPos best = null;
+        double bestDistance = Double.MAX_VALUE;
+
+        for (int x = -3; x <= 3; x++) {
+            for (int y = -2; y <= 2; y++) {
+                for (int z = -3; z <= 3; z++) {
+                    BlockPos candidate = center.add(x, y, z);
+                    if (!client.world.getBlockState(candidate).isOf(Blocks.RESPAWN_ANCHOR)) {
+                        continue;
+                    }
+
+                    double playerDistance = player.getEyePos().squaredDistanceTo(candidate.toCenterPos());
+                    double targetDistance = target.squaredDistanceTo(candidate.toCenterPos());
+                    if (playerDistance > INTERACTION_RANGE * INTERACTION_RANGE
+                            || targetDistance > 4.0
+                            || playerDistance >= bestDistance) {
+                        continue;
+                    }
+
+                    best = candidate.toImmutable();
+                    bestDistance = playerDistance;
+                }
+            }
+        }
+        return best;
+    }
+
+    private static void detonateAnchor(
+            MinecraftClient client,
+            ClientPlayerEntity player,
+            PlayerEntity target,
+            BlockPos anchorPos
+    ) {
+        Vec3d explosionPos = anchorPos.toCenterPos();
+        if (!isSafeExplosion(client, player, target, explosionPos, 5.0f)) {
+            reset(player);
+            return;
+        }
+
+        int detonationSlot = findDetonationSlot(player);
+        if (detonationSlot < 0) {
+            reset(player);
+            return;
+        }
+
+        selectSlot(player, detonationSlot);
+        interactWithBlock(client, player, anchorPos, Direction.UP);
+        reset(player);
     }
 
     public static void reset(ClientPlayerEntity player) {
