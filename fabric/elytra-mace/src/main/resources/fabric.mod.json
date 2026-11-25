@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "elytramace",
-  "version": "\${version}",
+  "version": "${version}",
   "name": "Elytra Mace Pilot",
   "description": "Client-side Elytra mace combo automation for permitted worlds and servers.",
   "environment": "client",
