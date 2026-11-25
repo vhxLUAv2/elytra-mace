@@ -106,6 +106,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
 
         ClientPlayerEntity player = client.player;
         while (modeKey.wasPressed()) {
+            CombatModeAutomation.reset(player);
             combatMode = combatMode.next();
             if (player != null) {
                 player.sendMessage(Text.literal("Combat mode: " + combatMode.displayName), true);
@@ -113,6 +114,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
         }
 
         if (!enabled) {
+            CombatModeAutomation.reset(player);
             if (player != null && client.currentScreen == null) {
                 if (storedElytraSlot >= 0) {
                     restoreElytra(client, player);
@@ -124,6 +126,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
         }
 
         if (player == null || client.world == null || client.interactionManager == null) {
+            CombatModeAutomation.reset(player);
             clearCycle();
             return;
         }
@@ -138,6 +141,11 @@ public final class ElytraMaceClient implements ClientModInitializer {
         }
 
         if (phase == Phase.GLIDING && combatMode != CombatMode.MACE) {
+            if (combatMode == CombatMode.CRYSTAL) {
+                CombatModeAutomation.tickCrystal(client, player);
+            } else {
+                CombatModeAutomation.tickAnchor(client, player);
+            }
             return;
         }
 
