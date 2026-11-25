@@ -21,9 +21,11 @@ A successful hit is detected from the target's hurt state or health/absorption c
 
 Mace smash attacks in Java Edition require at least 1.5 blocks of fall height and cannot activate while the player is grounded, has Slow Falling, or is still Elytra-gliding. The smash can trigger regardless of the normal attack cooldown, so this mod does not delay the strike for a full cooldown.
 
-Crystal mode targets the nearest visible non-teammate player within 5 blocks. It uses a nearby valid Obsidian/Bedrock base or attempts to place Obsidian beside the target, then places and attacks an End Crystal. Anchor mode places an Anchor beside a target within 5 blocks, charges it once, and detonates it outside the Nether. Both modes use the vanilla client interaction manager and wait for the world state/entity update before advancing.
+Crystal and Anchor modes acquire the nearest visible non-teammate player within 7 blocks. Actual block and crystal interactions remain limited to 4.5 blocks. Crystal mode uses a nearby valid Obsidian/Bedrock base or attempts to place Obsidian beside the target, then places and attacks an End Crystal. Anchor mode places an Anchor beside a target, charges it once, and detonates it outside the Nether. Both modes use the vanilla client interaction manager and wait for the world state/entity update before advancing; they do not send speculative placement or detonation sequences.
 
-Before detonating, the modes use Minecraft's client-side received-damage estimate and skip the explosion when the estimate could be lethal to the local player. This is a conservative guard, not a server-side guarantee. The current first pass does not include local crystal deletion, packet spoofing, automatic shield-block placement, Auto-Totem refill, Surround, or anti-pearl hole filling.
+Crystal and Anchor modes automatically move a Totem of Undying from the inventory into the offhand when the offhand is empty or no longer holds a Totem. Mace mode retains its existing emergency Totem behavior so an offhand Firework can still be used for re-gliding.
+
+Before detonating, the modes use Minecraft's client-side received-damage estimate and skip the explosion when the estimate could be lethal to the local player. This is a conservative guard, not a server-side guarantee. The current version does not include local crystal deletion, packet spoofing, automatic shield-block placement, Surround, or anti-pearl hole filling.
 
 ## Build
 
