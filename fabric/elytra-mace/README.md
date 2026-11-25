@@ -4,7 +4,10 @@ Client-side Fabric mod for Minecraft Java 1.21.11.
 
 ## Controls
 
-Press R to toggle automation.
+- Press R to toggle automation.
+- Press V to cycle between Mace, Crystal, and Anchor modes.
+
+Crystal and Anchor are currently selectable only; their automation behavior is not implemented yet.
 
 ## Required loadout
 
