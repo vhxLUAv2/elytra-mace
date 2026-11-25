@@ -55,7 +55,7 @@ public final class CombatModeAutomation {
             case IDLE -> {
                 EndCrystalEntity existing = findCrystal(client, player, target);
                 if (existing != null) {
-                    Vec3d explosionPos = existing.getPos();
+                    Vec3d explosionPos = existing.getEntityPos();
                     if (isSafeExplosion(client, player, target, explosionPos, 6.0f)) {
                         crystal = existing;
                         step = Step.WAITING_FOR_CRYSTAL;
@@ -123,12 +123,12 @@ public final class CombatModeAutomation {
                         ? crystal
                         : findCrystalAtBase(client, player, actionPos);
                 if (found != null) {
-                    Vec3d explosionPos = found.getPos();
+                    Vec3d explosionPos = found.getEntityPos();
                     if (!isSafeExplosion(client, player, target, explosionPos, 6.0f)) {
                         reset(player);
                         return;
                     }
-                    if (player.getEyePos().squaredDistanceTo(found.getPos()) <= INTERACTION_RANGE * INTERACTION_RANGE) {
+                    if (player.getEyePos().squaredDistanceTo(found.getEntityPos()) <= INTERACTION_RANGE * INTERACTION_RANGE) {
                         client.interactionManager.attackEntity(player, found);
                         reset(player);
                     }
@@ -255,7 +255,7 @@ public final class CombatModeAutomation {
         );
         return client.world.getEntitiesByClass(EndCrystalEntity.class, searchBox,
                 entity -> entity.isAlive()
-                        && player.getEyePos().squaredDistanceTo(entity.getPos()) <= INTERACTION_RANGE * INTERACTION_RANGE
+                        && player.getEyePos().squaredDistanceTo(entity.getEntityPos()) <= INTERACTION_RANGE * INTERACTION_RANGE
         ).stream().findFirst().orElse(null);
     }
 
@@ -269,7 +269,7 @@ public final class CombatModeAutomation {
         );
         return client.world.getEntitiesByClass(EndCrystalEntity.class, searchBox,
                 entity -> entity.isAlive()
-                        && player.getEyePos().squaredDistanceTo(entity.getPos()) <= INTERACTION_RANGE * INTERACTION_RANGE
+                        && player.getEyePos().squaredDistanceTo(entity.getEntityPos()) <= INTERACTION_RANGE * INTERACTION_RANGE
         ).stream().findFirst().orElse(null);
     }
 
