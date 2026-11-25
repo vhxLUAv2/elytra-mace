@@ -30,7 +30,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
     private static final double MIN_DIVE_SPEED = -0.35;
     private static final int CHEST_SLOT_ID = 6;
     private static final int OFFHAND_SLOT_ID = 45;
-    private static final float MAX_ROTATION_STEP = 32.0f;
+    private static final float MAX_ROTATION_STEP = 6.0f;
 
     private static KeyBinding toggleKey;
     private static boolean enabled;
