@@ -28,7 +28,7 @@ public final class CombatModeAutomation {
     private static final int OFFHAND_SLOT_ID = 45;
     private static final int TOTEM_SWAP_TIMEOUT_TICKS = 10;
     private static final double MAX_SELF_DAMAGE_MARGIN = 1.0;
-    private static final int STEP_TIMEOUT_TICKS = 5;
+    private static final int STEP_TIMEOUT_TICKS = 20;
 
     private static Step step = Step.IDLE;
     private static BlockPos actionPos;
