@@ -18,7 +18,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
 import net.minecraft.world.explosion.ExplosionImpl;
 
 public final class CombatModeAutomation {
@@ -142,7 +141,7 @@ public final class CombatModeAutomation {
     }
 
     public static void tickAnchor(MinecraftClient client, ClientPlayerEntity player) {
-        if (client.world.getRegistryKey().equals(World.NETHER)) {
+        if (client.world.getRegistryKey().getValue().getPath().equals("the_nether")) {
             if (!warnedNether) {
                 player.sendMessage(net.minecraft.text.Text.literal("Anchor mode is disabled in the Nether because anchors do not explode there."), true);
                 warnedNether = true;
@@ -230,7 +229,6 @@ public final class CombatModeAutomation {
         actionPos = null;
         crystal = null;
         stepTicks = 0;
-        warnedNether = false;
     }
 
     private static PlayerEntity findTarget(MinecraftClient client, ClientPlayerEntity player) {
