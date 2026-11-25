@@ -33,6 +33,7 @@ public final class CombatModeAutomation {
     private static Step step = Step.IDLE;
     private static BlockPos actionPos;
     private static EndCrystalEntity crystal;
+    private static PlayerEntity activeTarget;
     private static int stepTicks;
     private static int previousSlot = -1;
     private static boolean warnedNether;
@@ -52,7 +53,7 @@ public final class CombatModeAutomation {
 
     public static void tickCrystal(MinecraftClient client, ClientPlayerEntity player) {
         tickAutoTotem(client, player);
-        PlayerEntity target = findTarget(client, player);
+        PlayerEntity target = resolveCombatTarget(client, player);
         if (target == null) {
             reset(player);
             return;
@@ -298,6 +299,7 @@ public final class CombatModeAutomation {
         step = Step.IDLE;
         actionPos = null;
         crystal = null;
+        activeTarget = null;
         stepTicks = 0;
     }
 
@@ -353,6 +355,20 @@ public final class CombatModeAutomation {
         client.interactionManager.clickSlot(handler.syncId, destinationSlot, 0, SlotActionType.PICKUP, player);
         client.interactionManager.clickSlot(handler.syncId, sourceSlot, 0, SlotActionType.PICKUP, player);
         return true;
+    }
+
+    private static PlayerEntity resolveCombatTarget(MinecraftClient client, ClientPlayerEntity player) {
+        if (step != Step.IDLE && activeTarget != null) {
+            if (activeTarget.isAlive() && !activeTarget.isSpectator()
+                    && !player.isTeammate(activeTarget)
+                    && player.squaredDistanceTo(activeTarget) <= TARGET_RANGE * TARGET_RANGE) {
+                return activeTarget;
+            }
+            return null;
+        }
+
+        activeTarget = findTarget(client, player);
+        return activeTarget;
     }
 
     private static PlayerEntity findTarget(MinecraftClient client, ClientPlayerEntity player) {
