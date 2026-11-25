@@ -28,7 +28,10 @@ public final class CombatModeAutomation {
     private static final int OFFHAND_SLOT_ID = 45;
     private static final int TOTEM_SWAP_TIMEOUT_TICKS = 10;
     private static final double MAX_SELF_DAMAGE_MARGIN = 1.0;
-    private static final int STEP_TIMEOUT_TICKS = 20;
+    private static final int STEP_TIMEOUT_TICKS = 40;
+    private static final int SERVER_ACTION_DELAY_TICKS = 3;
+    private static final int CRYSTAL_ATTACK_DELAY_TICKS = 2;
+    private static final int POST_ACTION_COOLDOWN_TICKS = 4;
 
     private static Step step = Step.IDLE;
     private static BlockPos actionPos;
@@ -39,13 +42,16 @@ public final class CombatModeAutomation {
     private static boolean warnedNether;
     private static boolean totemSwapPending;
     private static int totemSwapTicks;
+    private static int actionCooldownTicks;
 
     private enum Step {
         IDLE,
         WAITING_FOR_OBSIDIAN,
         WAITING_FOR_CRYSTAL,
         WAITING_FOR_ANCHOR,
-        WAITING_FOR_CHARGE
+        WAITING_FOR_CHARGE,
+        WAITING_FOR_DETONATION,
+        WAITING_FOR_CRYSTAL_REMOVAL
     }
 
     private CombatModeAutomation() {
@@ -53,6 +59,10 @@ public final class CombatModeAutomation {
 
     public static void tickCrystal(MinecraftClient client, ClientPlayerEntity player) {
         tickAutoTotem(client, player);
+        if (step == Step.IDLE && actionCooldownTicks > 0) {
+            actionCooldownTicks--;
+            return;
+        }
         PlayerEntity target = resolveCombatTarget(client, player);
         if (target == null) {
             reset(player);
@@ -66,6 +76,9 @@ public final class CombatModeAutomation {
                     Vec3d explosionPos = existing.getEntityPos();
                     if (isSafeExplosion(client, player, target, explosionPos, 6.0f)
                             && player.getEyePos().squaredDistanceTo(explosionPos) <= INTERACTION_RANGE * INTERACTION_RANGE) {
+                        crystal = existing;
+                        step = Step.WAITING_FOR_CRYSTAL_REMOVAL;
+                        stepTicks = 0;
                         client.interactionManager.attackEntity(player, existing);
                     }
                     return;
@@ -103,7 +116,7 @@ public final class CombatModeAutomation {
             }
             case WAITING_FOR_OBSIDIAN -> {
                 stepTicks++;
-                if (client.world.getBlockState(actionPos).isOf(Blocks.OBSIDIAN)) {
+                if (client.world.getBlockState(actionPos).isOf(Blocks.OBSIDIAN) && stepTicks >= SERVER_ACTION_DELAY_TICKS) {
                     if (!hasCrystalSpace(client, actionPos) || !isSafeExplosion(
                             client, player, target,
                             new Vec3d(actionPos.getX() + 0.5, actionPos.getY() + 1.0, actionPos.getZ() + 0.5),
@@ -137,13 +150,21 @@ public final class CombatModeAutomation {
                     }
                     if (player.getEyePos().squaredDistanceTo(found.getEntityPos()) <= INTERACTION_RANGE * INTERACTION_RANGE) {
                         client.interactionManager.attackEntity(player, found);
-                        reset(player);
+                        step = Step.WAITING_FOR_CRYSTAL_REMOVAL;
+                        stepTicks = 0;
                     }
                 } else if (stepTicks > STEP_TIMEOUT_TICKS) {
                     reset(player);
                 }
             }
-            case WAITING_FOR_ANCHOR, WAITING_FOR_CHARGE -> reset(player);
+            case WAITING_FOR_CRYSTAL_REMOVAL -> {
+                stepTicks++;
+                if (crystal == null || !crystal.isAlive() || stepTicks > STEP_TIMEOUT_TICKS) {
+                    reset(player);
+                    actionCooldownTicks = POST_ACTION_COOLDOWN_TICKS;
+                }
+            }
+            case WAITING_FOR_ANCHOR, WAITING_FOR_CHARGE, WAITING_FOR_DETONATION -> reset(player);
         }
     }
 
@@ -159,7 +180,11 @@ public final class CombatModeAutomation {
         }
         warnedNether = false;
 
-        PlayerEntity target = findTarget(client, player);
+        if (step == Step.IDLE && actionCooldownTicks > 0) {
+            actionCooldownTicks--;
+            return;
+        }
+        PlayerEntity target = resolveCombatTarget(client, player);
         if (target == null) {
             reset(player);
             return;
@@ -172,7 +197,8 @@ public final class CombatModeAutomation {
                     actionPos = existingAnchor.toImmutable();
                     BlockState existingState = client.world.getBlockState(actionPos);
                     if (existingState.get(RespawnAnchorBlock.CHARGES) > RespawnAnchorBlock.NO_CHARGES) {
-                        detonateAnchor(client, player, target, actionPos);
+                        step = Step.WAITING_FOR_CHARGE;
+                        stepTicks = 0;
                         return;
                     }
 
@@ -207,7 +233,7 @@ public final class CombatModeAutomation {
             case WAITING_FOR_ANCHOR -> {
                 stepTicks++;
                 BlockState state = client.world.getBlockState(actionPos);
-                if (state.isOf(Blocks.RESPAWN_ANCHOR)) {
+                if (state.isOf(Blocks.RESPAWN_ANCHOR) && stepTicks >= SERVER_ACTION_DELAY_TICKS) {
                     int glowstoneSlot = findHotbarSlot(player, Items.GLOWSTONE);
                     if (glowstoneSlot < 0) {
                         reset(player);
@@ -225,13 +251,22 @@ public final class CombatModeAutomation {
                 stepTicks++;
                 BlockState state = client.world.getBlockState(actionPos);
                 if (state.isOf(Blocks.RESPAWN_ANCHOR)
-                        && state.get(RespawnAnchorBlock.CHARGES) > RespawnAnchorBlock.NO_CHARGES) {
+                        && state.get(RespawnAnchorBlock.CHARGES) > RespawnAnchorBlock.NO_CHARGES
+                        && stepTicks >= SERVER_ACTION_DELAY_TICKS) {
                     detonateAnchor(client, player, target, actionPos);
                 } else if (stepTicks > STEP_TIMEOUT_TICKS) {
                     reset(player);
                 }
             }
-            case WAITING_FOR_OBSIDIAN, WAITING_FOR_CRYSTAL -> reset(player);
+            case WAITING_FOR_DETONATION -> {
+                stepTicks++;
+                if (!client.world.getBlockState(actionPos).isOf(Blocks.RESPAWN_ANCHOR)
+                        || stepTicks > STEP_TIMEOUT_TICKS) {
+                    reset(player);
+                    actionCooldownTicks = POST_ACTION_COOLDOWN_TICKS;
+                }
+            }
+            case WAITING_FOR_CRYSTAL_REMOVAL, WAITING_FOR_OBSIDIAN, WAITING_FOR_CRYSTAL -> reset(player);
         }
     }
 
@@ -288,7 +323,8 @@ public final class CombatModeAutomation {
 
         selectSlot(player, detonationSlot);
         interactWithBlock(client, player, anchorPos, Direction.UP);
-        reset(player);
+        step = Step.WAITING_FOR_DETONATION;
+        stepTicks = 0;
     }
 
     public static void reset(ClientPlayerEntity player) {
