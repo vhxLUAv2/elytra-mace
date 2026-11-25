@@ -7,15 +7,11 @@ Client-side Fabric mod for Minecraft Java 1.21.11.
 - Press R to toggle automation.
 - Press V to cycle between Mace, Crystal, and Anchor modes.
 
-Crystal and Anchor are currently selectable only; their automation behavior is not implemented yet.
-
 ## Required loadout
 
-- Wear an Elytra and begin gliding manually.
-- Keep a mace in the hotbar.
-- Keep a chestplate in the inventory for the Elytra swap.
-- Keep a Totem of Undying in the inventory for the fall fail-safe.
-- Fireworks in the offhand are optional and are used after a successful re-glide.
+- Mace mode: Wear an Elytra, keep a mace in the hotbar, keep a chestplate in the inventory for the Elytra swap, and keep a Totem of Undying in the inventory for the fall fail-safe. Fireworks in the offhand are optional.
+- Crystal mode: Keep Obsidian and End Crystals in the hotbar.
+- Anchor mode: Keep Respawn Anchors and Glowstone in the hotbar. Anchor mode does not detonate anchors in the Nether.
 
 ## Combo sequence
 
@@ -24,6 +20,10 @@ The mod searches for the nearest visible non-teammate player within 48 blocks an
 A successful hit is detected from the target's hurt state or health/absorption change. The mod then restores the Elytra, waits for a Wind Burst launch to reach its apex, requests a normal vanilla re-glide, and uses an offhand firework if one is available. If a dive misses and the player is falling more than 3 blocks, it attempts to move a Totem of Undying to the offhand.
 
 Mace smash attacks in Java Edition require at least 1.5 blocks of fall height and cannot activate while the player is grounded, has Slow Falling, or is still Elytra-gliding. The smash can trigger regardless of the normal attack cooldown, so this mod does not delay the strike for a full cooldown.
+
+Crystal mode targets the nearest visible non-teammate player within 5 blocks. It uses a nearby valid Obsidian/Bedrock base or attempts to place Obsidian beside the target, then places and attacks an End Crystal. Anchor mode places an Anchor beside a target within 5 blocks, charges it once, and detonates it outside the Nether. Both modes use the vanilla client interaction manager and wait for the world state/entity update before advancing.
+
+Before detonating, the modes use Minecraft's client-side received-damage estimate and skip the explosion when the estimate could be lethal to the local player. This is a conservative guard, not a server-side guarantee. The current first pass does not include local crystal deletion, packet spoofing, automatic shield-block placement, Auto-Totem refill, Surround, or anti-pearl hole filling.
 
 ## Build
 
