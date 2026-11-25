@@ -32,8 +32,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
     private static final int DETACH_TIMEOUT_TICKS = 16;
     private static final int PRE_STRIKE_TIMEOUT_TICKS = 16;
     private static final int ATTACK_WINDOW_TICKS = 28;
-    private static final double MAX_TARGET_LEAD_TICKS = 5.0;
-    private static final double TARGET_LEAD_FACTOR = 0.75;
+    private static final double MAX_TARGET_LEAD_TICKS = 8.0;
     private static final int CHEST_SLOT_ID = 6;
     private static final int OFFHAND_SLOT_ID = 45;
     private static final float MAX_ROTATION_STEP = 6.0f;
@@ -127,7 +126,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
             return;
         }
 
-        aimAt(player, target);
+        aimAt(player, target, !target.isOnGround() || player.getVelocity().y <= MIN_DIVE_SPEED);
 
         if (!player.getEquippedStack(EquipmentSlot.CHEST).isOf(Items.ELYTRA)) {
             return;
@@ -171,7 +170,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
             return;
         }
 
-        aimAt(player, target);
+        aimAt(player, target, true);
         phaseTicks++;
 
         if (!player.isGliding() && player.fallDistance >= MIN_FALL_HEIGHT) {
@@ -192,7 +191,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
             return;
         }
 
-        aimAt(player, target);
+        aimAt(player, target, true);
         int maceSlot = findMaceHotbarSlot(player);
         if (maceSlot < 0) {
             beginRecovery(client, player, false);
@@ -342,26 +341,34 @@ public final class ElytraMaceClient implements ClientModInitializer {
         return findTarget(client, player);
     }
 
-    private static void aimAt(ClientPlayerEntity player, PlayerEntity entity) {
-        Vec3d targetCenter = entity.getBoundingBox().getCenter();
-        double distance = player.getEyePos().distanceTo(targetCenter);
-        double travelSpeed = Math.max(player.getVelocity().length(), 0.35);
-        double leadTicks = MathHelper.clamp(distance / travelSpeed, 0.0, MAX_TARGET_LEAD_TICKS);
-        Vec3d aimPosition = targetCenter.add(entity.getVelocity().multiply(leadTicks * TARGET_LEAD_FACTOR));
-        Vec3d direction = aimPosition.subtract(player.getEyePos());
+    private static void aimAt(ClientPlayerEntity player, PlayerEntity entity, boolean trackPitch) {
+        Vec3d relativePosition = entity.getBoundingBox().getCenter().subtract(player.getEyePos());
+        double distance = relativePosition.length();
+        if (distance < 1.0e-4) {
+            return;
+        }
+
+        Vec3d relativeVelocity = entity.getVelocity().subtract(player.getVelocity());
+        double closingSpeed = -relativeVelocity.dotProduct(relativePosition.multiply(1.0 / distance));
+        double leadTicks = closingSpeed > 1.0e-4
+                ? MathHelper.clamp(distance / closingSpeed, 0.0, MAX_TARGET_LEAD_TICKS)
+                : 0.0;
+        Vec3d direction = relativePosition.add(entity.getVelocity().multiply(leadTicks));
         double horizontalLength = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
 
         float desiredYaw = (float) (Math.toDegrees(Math.atan2(direction.z, direction.x)) - 90.0);
         float desiredPitch = (float) -Math.toDegrees(Math.atan2(direction.y, horizontalLength));
         float yawDifference = MathHelper.wrapDegrees(desiredYaw - player.getYaw());
-        float pitchDifference = desiredPitch - player.getPitch();
 
         player.setYaw(player.getYaw() + MathHelper.clamp(yawDifference, -MAX_ROTATION_STEP, MAX_ROTATION_STEP));
-        player.setPitch(MathHelper.clamp(
-                player.getPitch() + MathHelper.clamp(pitchDifference, -MAX_ROTATION_STEP, MAX_ROTATION_STEP),
-                -90.0f,
-                90.0f
-        ));
+        if (trackPitch) {
+            float pitchDifference = desiredPitch - player.getPitch();
+            player.setPitch(MathHelper.clamp(
+                    player.getPitch() + MathHelper.clamp(pitchDifference, -MAX_ROTATION_STEP, MAX_ROTATION_STEP),
+                    -90.0f,
+                    90.0f
+            ));
+        }
     }
 
     private static int findMaceHotbarSlot(ClientPlayerEntity player) {
