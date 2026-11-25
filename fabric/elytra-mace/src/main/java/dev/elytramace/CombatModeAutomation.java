@@ -149,7 +149,8 @@ public final class CombatModeAutomation {
                         reset(player);
                         return;
                     }
-                    if (player.getEyePos().squaredDistanceTo(found.getEntityPos()) <= INTERACTION_RANGE * INTERACTION_RANGE) {
+                    if (stepTicks >= CRYSTAL_ATTACK_DELAY_TICKS
+                            && player.getEyePos().squaredDistanceTo(found.getEntityPos()) <= INTERACTION_RANGE * INTERACTION_RANGE) {
                         client.interactionManager.attackEntity(player, found);
                         step = Step.WAITING_FOR_CRYSTAL_REMOVAL;
                         stepTicks = 0;
@@ -445,8 +446,7 @@ public final class CombatModeAutomation {
                 base.getX() + 2.5, base.getY() + 4.0, base.getZ() + 2.5
         );
         return client.world.getEntitiesByClass(EndCrystalEntity.class, searchBox,
-                entity -> entity.isAlive()
-                        && player.getEyePos().squaredDistanceTo(entity.getEntityPos()) <= INTERACTION_RANGE * INTERACTION_RANGE
+                EndCrystalEntity::isAlive
         ).stream().findFirst().orElse(null);
     }
 
