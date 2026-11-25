@@ -25,6 +25,7 @@ import org.lwjgl.glfw.GLFW;
 public final class ElytraMaceClient implements ClientModInitializer {
     private static final double TARGET_RANGE = 48.0;
     private static final double SWAP_RANGE = 5.0;
+    private static final double SWAP_RANGE_PER_CLOSING_SPEED = 2.0;
     private static final double ATTACK_REACH = 3.0;
     private static final double MIN_FALL_HEIGHT = 1.5;
     private static final double MIN_DIVE_SPEED = -0.35;
@@ -136,7 +137,11 @@ public final class ElytraMaceClient implements ClientModInitializer {
             return;
         }
 
-        if (player.squaredDistanceTo(target) > SWAP_RANGE * SWAP_RANGE) {
+        Vec3d toTarget = target.getBoundingBox().getCenter().subtract(player.getEyePos());
+        double closingSpeed = player.getVelocity().dotProduct(toTarget.normalize());
+        double effectiveSwapRange = SWAP_RANGE
+                + MathHelper.clamp(closingSpeed, 0.0, 5.0) * SWAP_RANGE_PER_CLOSING_SPEED;
+        if (player.squaredDistanceTo(target) > effectiveSwapRange * effectiveSwapRange) {
             return;
         }
 
