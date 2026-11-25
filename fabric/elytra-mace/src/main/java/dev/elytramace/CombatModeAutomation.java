@@ -26,7 +26,7 @@ public final class CombatModeAutomation {
     private static final double TARGET_RANGE = 7.0;
     private static final double INTERACTION_RANGE = 4.5;
     private static final int OFFHAND_SLOT_ID = 45;
-    private static final int TOTEM_SWAP_TIMEOUT_TICKS = 10;
+    private static final int TOTEM_SWAP_TIMEOUT_TICKS = 40;
     private static final double MAX_SELF_DAMAGE_MARGIN = 1.0;
     private static final int STEP_TIMEOUT_TICKS = 40;
     private static final int SERVER_ACTION_DELAY_TICKS = 3;
