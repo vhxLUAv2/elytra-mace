@@ -143,6 +143,7 @@ public final class CombatModeAutomation {
                         ? crystal
                         : findCrystalAtBase(client, player, actionPos);
                 if (found != null) {
+                    crystal = found;
                     Vec3d explosionPos = found.getEntityPos();
                     if (!isSafeExplosion(client, player, target, explosionPos, 6.0f)) {
                         reset(player);
