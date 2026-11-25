@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "elytramace",
+  "version": "\${version}",
+  "name": "Elytra Mace Pilot",
+  "description": "Client-side Elytra mace combo automation for permitted worlds and servers.",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.elytramace.ElytraMaceClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": ">=0.141.1"
+  }
+}
