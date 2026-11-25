@@ -38,7 +38,9 @@ public final class ElytraMaceClient implements ClientModInitializer {
     private static final float MAX_ROTATION_STEP = 32.0f;
 
     private static KeyBinding toggleKey;
+    private static KeyBinding modeKey;
     private static boolean enabled;
+    private static CombatMode combatMode = CombatMode.MACE;
     private static Phase phase = Phase.GLIDING;
     private static PlayerEntity target;
     private static int storedElytraSlot = -1;
@@ -51,6 +53,22 @@ public final class ElytraMaceClient implements ClientModInitializer {
     private static int ticksSinceGlideRequest;
     private static boolean fireworkUsed;
     private static boolean recoveryMessageSent;
+
+    private enum CombatMode {
+        MACE("Mace"),
+        CRYSTAL("Crystal"),
+        ANCHOR("Anchor");
+
+        private final String displayName;
+
+        CombatMode(String displayName) {
+            this.displayName = displayName;
+        }
+
+        private CombatMode next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
 
     private enum Phase {
         GLIDING,
@@ -69,6 +87,12 @@ public final class ElytraMaceClient implements ClientModInitializer {
                 GLFW.GLFW_KEY_R,
                 KeyBinding.Category.MISC
         ));
+        modeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.elytramace.mode",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_V,
+                KeyBinding.Category.MISC
+        ));
         ClientTickEvents.END_CLIENT_TICK.register(ElytraMaceClient::tick);
     }
 
@@ -81,6 +105,13 @@ public final class ElytraMaceClient implements ClientModInitializer {
         }
 
         ClientPlayerEntity player = client.player;
+        while (modeKey.wasPressed()) {
+            combatMode = combatMode.next();
+            if (player != null) {
+                player.sendMessage(Text.literal("Combat mode: " + combatMode.displayName), true);
+            }
+        }
+
         if (!enabled) {
             if (player != null && client.currentScreen == null) {
                 if (storedElytraSlot >= 0) {
@@ -103,6 +134,10 @@ public final class ElytraMaceClient implements ClientModInitializer {
 
         if (!player.isAlive() || player.isSpectator()) {
             beginRecovery(client, player, false);
+            return;
+        }
+
+        if (phase == Phase.GLIDING && combatMode != CombatMode.MACE) {
             return;
         }
 
