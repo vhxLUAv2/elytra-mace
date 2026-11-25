@@ -28,6 +28,11 @@ public final class ElytraMaceClient implements ClientModInitializer {
     private static final double ATTACK_REACH = 3.0;
     private static final double MIN_FALL_HEIGHT = 1.5;
     private static final double MIN_DIVE_SPEED = -0.35;
+    private static final int DETACH_TIMEOUT_TICKS = 16;
+    private static final int PRE_STRIKE_TIMEOUT_TICKS = 16;
+    private static final int ATTACK_WINDOW_TICKS = 28;
+    private static final double MAX_TARGET_LEAD_TICKS = 5.0;
+    private static final double TARGET_LEAD_FACTOR = 0.75;
     private static final int CHEST_SLOT_ID = 6;
     private static final int OFFHAND_SLOT_ID = 45;
     private static final float MAX_ROTATION_STEP = 6.0f;
@@ -170,7 +175,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
             return;
         }
 
-        if (phaseTicks > 8) {
+        if (phaseTicks > DETACH_TIMEOUT_TICKS) {
             beginRecovery(client, player, false);
         }
     }
@@ -192,7 +197,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
 
         if (player.isGliding() || player.fallDistance < MIN_FALL_HEIGHT) {
             phaseTicks++;
-            if (phaseTicks > 8) {
+            if (phaseTicks > PRE_STRIKE_TIMEOUT_TICKS) {
                 beginRecovery(client, player, false);
             }
             return;
@@ -210,7 +215,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
         }
 
         phaseTicks++;
-        if (phaseTicks > 16 || player.fallDistance > 18.0) {
+        if (phaseTicks > ATTACK_WINDOW_TICKS || player.fallDistance > 18.0) {
             beginRecovery(client, player, false);
         }
     }
@@ -333,7 +338,11 @@ public final class ElytraMaceClient implements ClientModInitializer {
     }
 
     private static void aimAt(ClientPlayerEntity player, PlayerEntity entity) {
-        Vec3d aimPosition = entity.getBoundingBox().getCenter().add(entity.getVelocity().multiply(0.12));
+        Vec3d targetCenter = entity.getBoundingBox().getCenter();
+        double distance = player.getEyePos().distanceTo(targetCenter);
+        double travelSpeed = Math.max(player.getVelocity().length(), 0.35);
+        double leadTicks = MathHelper.clamp(distance / travelSpeed, 0.0, MAX_TARGET_LEAD_TICKS);
+        Vec3d aimPosition = targetCenter.add(entity.getVelocity().multiply(leadTicks * TARGET_LEAD_FACTOR));
         Vec3d direction = aimPosition.subtract(player.getEyePos());
         double horizontalLength = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
 
