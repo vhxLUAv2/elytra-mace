@@ -12,6 +12,8 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -21,8 +23,10 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.explosion.ExplosionImpl;
 
 public final class CombatModeAutomation {
-    private static final double TARGET_RANGE = 5.0;
+    private static final double TARGET_RANGE = 7.0;
     private static final double INTERACTION_RANGE = 4.5;
+    private static final int OFFHAND_SLOT_ID = 45;
+    private static final int TOTEM_SWAP_TIMEOUT_TICKS = 10;
     private static final double MAX_SELF_DAMAGE_MARGIN = 1.0;
     private static final int STEP_TIMEOUT_TICKS = 5;
 
@@ -32,6 +36,8 @@ public final class CombatModeAutomation {
     private static int stepTicks;
     private static int previousSlot = -1;
     private static boolean warnedNether;
+    private static boolean totemSwapPending;
+    private static int totemSwapTicks;
 
     private enum Step {
         IDLE,
@@ -45,6 +51,7 @@ public final class CombatModeAutomation {
     }
 
     public static void tickCrystal(MinecraftClient client, ClientPlayerEntity player) {
+        tickAutoTotem(client, player);
         PlayerEntity target = findTarget(client, player);
         if (target == null) {
             reset(player);
@@ -56,10 +63,9 @@ public final class CombatModeAutomation {
                 EndCrystalEntity existing = findCrystal(client, player, target);
                 if (existing != null) {
                     Vec3d explosionPos = existing.getEntityPos();
-                    if (isSafeExplosion(client, player, target, explosionPos, 6.0f)) {
-                        crystal = existing;
-                        step = Step.WAITING_FOR_CRYSTAL;
-                        stepTicks = 0;
+                    if (isSafeExplosion(client, player, target, explosionPos, 6.0f)
+                            && player.getEyePos().squaredDistanceTo(explosionPos) <= INTERACTION_RANGE * INTERACTION_RANGE) {
+                        client.interactionManager.attackEntity(player, existing);
                     }
                     return;
                 }
@@ -141,6 +147,7 @@ public final class CombatModeAutomation {
     }
 
     public static void tickAnchor(MinecraftClient client, ClientPlayerEntity player) {
+        tickAutoTotem(client, player);
         if (client.world.getRegistryKey().getValue().getPath().equals("the_nether")) {
             if (!warnedNether) {
                 player.sendMessage(net.minecraft.text.Text.literal("Anchor mode is disabled in the Nether because anchors do not explode there."), true);
@@ -229,6 +236,60 @@ public final class CombatModeAutomation {
         actionPos = null;
         crystal = null;
         stepTicks = 0;
+    }
+
+    private static void tickAutoTotem(MinecraftClient client, ClientPlayerEntity player) {
+        if (player.getOffHandStack().isOf(Items.TOTEM_OF_UNDYING)) {
+            totemSwapPending = false;
+            totemSwapTicks = 0;
+            return;
+        }
+
+        if (totemSwapPending) {
+            totemSwapTicks++;
+            if (totemSwapTicks < TOTEM_SWAP_TIMEOUT_TICKS) {
+                return;
+            }
+            totemSwapPending = false;
+            totemSwapTicks = 0;
+        }
+
+        int totemSlot = findTotemInventorySlot(player);
+        if (totemSlot < 0 || client.currentScreen != null) {
+            return;
+        }
+
+        if (swapInventorySlot(client, player, totemSlot, OFFHAND_SLOT_ID)) {
+            totemSwapPending = true;
+            totemSwapTicks = 0;
+        }
+    }
+
+    private static int findTotemInventorySlot(ClientPlayerEntity player) {
+        for (int slot = 0; slot < 36; slot++) {
+            if (player.getInventory().getStack(slot).isOf(Items.TOTEM_OF_UNDYING)) {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
+    private static boolean swapInventorySlot(
+            MinecraftClient client,
+            ClientPlayerEntity player,
+            int inventorySlot,
+            int destinationSlot
+    ) {
+        if (client.currentScreen != null || inventorySlot < 0 || inventorySlot >= 36) {
+            return false;
+        }
+
+        ScreenHandler handler = player.currentScreenHandler;
+        int sourceSlot = inventorySlot < 9 ? inventorySlot + 36 : inventorySlot;
+        client.interactionManager.clickSlot(handler.syncId, sourceSlot, 0, SlotActionType.PICKUP, player);
+        client.interactionManager.clickSlot(handler.syncId, destinationSlot, 0, SlotActionType.PICKUP, player);
+        client.interactionManager.clickSlot(handler.syncId, sourceSlot, 0, SlotActionType.PICKUP, player);
+        return true;
     }
 
     private static PlayerEntity findTarget(MinecraftClient client, ClientPlayerEntity player) {
