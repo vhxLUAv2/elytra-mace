@@ -32,11 +32,11 @@ public final class ElytraMaceClient implements ClientModInitializer {
     private static final int DETACH_TIMEOUT_TICKS = 16;
     private static final int PRE_STRIKE_TIMEOUT_TICKS = 16;
     private static final int ATTACK_WINDOW_TICKS = 28;
-    private static final double MAX_TARGET_LEAD_TICKS = 5.0;
-    private static final float MAX_ATTACK_ROTATION_STEP = 10.0f;
+    private static final double MAX_TARGET_LEAD_TICKS = 8.0;
+    private static final float MAX_ATTACK_ROTATION_STEP = 32.0f;
     private static final int CHEST_SLOT_ID = 6;
     private static final int OFFHAND_SLOT_ID = 45;
-    private static final float MAX_ROTATION_STEP = 6.0f;
+    private static final float MAX_ROTATION_STEP = 32.0f;
 
     private static KeyBinding toggleKey;
     private static boolean enabled;
@@ -127,7 +127,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
             return;
         }
 
-        aimAt(player, target, MAX_ROTATION_STEP);
+        aimAt(player, target, MAX_ROTATION_STEP, !target.isOnGround() || !player.isGliding());
 
         if (!player.getEquippedStack(EquipmentSlot.CHEST).isOf(Items.ELYTRA)) {
             return;
@@ -171,7 +171,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
             return;
         }
 
-        aimAt(player, target, MAX_ROTATION_STEP);
+        aimAt(player, target, MAX_ROTATION_STEP, !target.isOnGround() || !player.isGliding());
         phaseTicks++;
 
         if (!player.isGliding() && player.fallDistance >= MIN_FALL_HEIGHT) {
@@ -192,7 +192,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
             return;
         }
 
-        aimAt(player, target, MAX_ATTACK_ROTATION_STEP);
+        aimAt(player, target, MAX_ATTACK_ROTATION_STEP, true);
         int maceSlot = findMaceHotbarSlot(player);
         if (maceSlot < 0) {
             beginRecovery(client, player, false);
@@ -342,7 +342,7 @@ public final class ElytraMaceClient implements ClientModInitializer {
         return findTarget(client, player);
     }
 
-    private static void aimAt(ClientPlayerEntity player, PlayerEntity entity, float rotationStep) {
+    private static void aimAt(ClientPlayerEntity player, PlayerEntity entity, float rotationStep, boolean adjustPitch) {
         Vec3d relativePosition = entity.getBoundingBox().getCenter().subtract(player.getEyePos());
         Vec3d relativeVelocity = entity.getVelocity().subtract(player.getVelocity());
         double distanceSquared = relativePosition.lengthSquared();
@@ -378,11 +378,13 @@ public final class ElytraMaceClient implements ClientModInitializer {
         float pitchDifference = desiredPitch - player.getPitch();
 
         player.setYaw(player.getYaw() + MathHelper.clamp(yawDifference, -rotationStep, rotationStep));
-        player.setPitch(MathHelper.clamp(
-                player.getPitch() + MathHelper.clamp(pitchDifference, -rotationStep, rotationStep),
-                -90.0f,
-                90.0f
-        ));
+        if (adjustPitch) {
+            player.setPitch(MathHelper.clamp(
+                    player.getPitch() + MathHelper.clamp(pitchDifference, -rotationStep, rotationStep),
+                    -90.0f,
+                    90.0f
+            ));
+        }
     }
 
     private static int findMaceHotbarSlot(ClientPlayerEntity player) {
